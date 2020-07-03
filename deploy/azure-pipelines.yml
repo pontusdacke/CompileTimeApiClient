@@ -1,0 +1,63 @@
+# ASP.NET
+# Build and test ASP.NET projects.
+# Add steps that publish symbols, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
+
+trigger:
+- master
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  Major: '1'
+  Minor: '0'
+  Patch: $[counter(format('{0}.{1}', variables['Major'], variables['Minor']), 0)]
+  PackageVersion: '$(Major).$(Minor).$(Patch)'
+
+steps:
+- task: NuGetToolInstaller@1
+
+- task: DotNetCoreCLI@2
+  inputs:
+    command: 'build'
+    projects: 'ApiClientGeneration/Candy.Api/Candy.Api.csproj'
+    arguments: '--configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/api'
+
+- task: DotNetCoreCLI@2
+  inputs:
+    command: 'build'
+    projects: 'ApiClientGeneration\Candy.Api.Clients\Candy.Api.Clients.csproj'
+    arguments: '--configuration $(buildConfiguration)'
+
+# - task: NuGetCommand@2
+#   inputs:
+#     command: pack
+#     versioningScheme: byEnvVar
+#     versionEnvVar: PackageVersion
+#     packagesToPack: 'ApiClientGeneration\Candy.Api.Clients\Candy.Api.Clients.csproj'
+#     packDestination: $(build.artifactstagingdirectory)/client
+
+- task: DotNetCoreCLI@2
+  inputs:
+    command: 'pack'
+    packagesToPack: 'ApiClientGeneration\Candy.Api.Clients\Candy.Api.Clients.csproj'
+    configuration: '$(buildConfiguration)'
+    versioningScheme: 'byEnvVar'
+    versionEnvVar: 'PackageVersion'
+    packDirectory: $(build.artifactstagingdirectory)/client
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/api'
+    ArtifactName: 'api'
+    publishLocation: 'Container'
+    
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/client'
+    ArtifactName: 'client'
+    publishLocation: 'Container'
